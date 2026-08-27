@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+out/
+
+# Environment files
+.env*
+.env.local
+.env.*.local
+
+# kiro
+.kiro/*
+
+
+# Turbo
+.turbo/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Prisma
+apps/api/src/config/generated/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
