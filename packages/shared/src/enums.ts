@@ -1,0 +1,38 @@
+/**
+ * Enums shared between the API and the web app.
+ * These must stay in sync with the Prisma schema.
+ */
+
+export enum Role {
+  ADMINISTRADOR = 'ADMINISTRADOR',
+  DOCENTE = 'DOCENTE',
+}
+
+export enum EquipmentStatus {
+  DISPONIBLE = 'DISPONIBLE',
+  PRESTADO = 'PRESTADO',
+}
+
+export enum LoanRequestStatus {
+  PENDIENTE = 'PENDIENTE',
+  APROBADA = 'APROBADA',
+  RECHAZADA = 'RECHAZADA',
+  CANCELADA = 'CANCELADA',
+}
+
+export enum LoanStatus {
+  ACTIVO = 'ACTIVO',
+  FINALIZADO = 'FINALIZADO',
+}
+
+export enum EventType {
+  EQUIPMENT_CREATED = 'EQUIPMENT_CREATED',
+  EQUIPMENT_UPDATED = 'EQUIPMENT_UPDATED',
+  EQUIPMENT_DELETED = 'EQUIPMENT_DELETED',
+  REQUEST_CREATED = 'REQUEST_CREATED',
+  REQUEST_APPROVED = 'REQUEST_APPROVED',
+  REQUEST_REJECTED = 'REQUEST_REJECTED',
+  REQUEST_CANCELLED = 'REQUEST_CANCELLED',
+  LOAN_STARTED = 'LOAN_STARTED',
+  LOAN_RETURNED = 'LOAN_RETURNED',
+}
