@@ -1,10 +1,9 @@
-import express from "express";
-import type { Request, Response } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error.middleware.js";
 
-export const app = express();
+export const app: Express = express();
 
 // ── Global middlewares ────────────────────────────────────────────────────────
 
