@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMINISTRADOR
+  DOCENTE
+}
+
+enum EquipmentStatus {
+  DISPONIBLE
+  PRESTADO
+}
+
+enum LoanRequestStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+enum LoanStatus {
+  ACTIVO
+  FINALIZADO
+}
+
+enum EventType {
+  EQUIPMENT_CREATED
+  EQUIPMENT_UPDATED
+  EQUIPMENT_DELETED
+  REQUEST_CREATED
+  REQUEST_APPROVED
+  REQUEST_REJECTED
+  REQUEST_CANCELLED
+  LOAN_STARTED
+  LOAN_RETURNED
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  fullName      String
+  role          Role
+  createdAt     DateTime       @default(now())
+  refreshTokens RefreshToken[]
+  loanRequests  LoanRequest[]
+  historyEvents HistoryEvent[]
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Category {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  equipment Equipment[]
+}
+
+model Equipment {
+  id            String          @id @default(uuid())
+  name          String          @db.VarChar(100)
+  serialNumber  String          @unique @db.VarChar(50)
+  description   String          @db.VarChar(500)
+  status        EquipmentStatus @default(DISPONIBLE)
+  categoryId    String
+  category      Category        @relation(fields: [categoryId], references: [id])
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  loanRequests  LoanRequest[]
+  loans         Loan[]
+  historyEvents HistoryEvent[]
+}
+
+model LoanRequest {
+  id              String            @id @default(uuid())
+  status          LoanRequestStatus @default(PENDIENTE)
+  purpose         String            @db.VarChar(500)
+  startDate       DateTime
+  returnDate      DateTime
+  rejectionReason String?           @db.VarChar(500)
+  cancelledAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  teacherId       String
+  teacher         User              @relation(fields: [teacherId], references: [id])
+  equipmentId     String
+  equipment       Equipment         @relation(fields: [equipmentId], references: [id])
+  loan            Loan?
+  historyEvents   HistoryEvent[]
+}
+
+model Loan {
+  id               String         @id @default(uuid())
+  status           LoanStatus     @default(ACTIVO)
+  startDate        DateTime
+  agreedReturnDate DateTime
+  actualReturnDate DateTime?
+  returnedLate     Boolean?
+  daysLate         Int?
+  returnNotes      String?        @db.VarChar(500)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  requestId        String         @unique
+  request          LoanRequest    @relation(fields: [requestId], references: [id])
+  equipmentId      String
+  equipment        Equipment      @relation(fields: [equipmentId], references: [id])
+  historyEvents    HistoryEvent[]
+}
+
+model HistoryEvent {
+  id            String       @id @default(uuid())
+  eventType     EventType
+  entityId      String
+  entityTable   String
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+  occurredAt    DateTime     @default(now())
+  changedFields Json?
+  // Optional foreign keys for efficient filtering
+  equipmentId   String?
+  equipment     Equipment?   @relation(fields: [equipmentId], references: [id])
+  requestId     String?
+  request       LoanRequest? @relation(fields: [requestId], references: [id])
+  loanId        String?
+  loan          Loan?        @relation(fields: [loanId], references: [id])
+
+  @@index([eventType])
+  @@index([occurredAt])
+  @@index([equipmentId])
+  @@index([userId])
+}
