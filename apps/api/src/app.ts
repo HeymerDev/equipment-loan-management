@@ -19,10 +19,9 @@ app.use(cookieParser());
 
 // ── API routes ────────────────────────────────────────────────────────────────
 // Routers are mounted here as each module is implemented.
-// Uncomment the corresponding import and app.use() line when the module is ready.
 
-// import { authRouter } from './modules/auth/auth.router.js';
-// app.use('/api/v1/auth', authRouter);
+import { authRouter } from "./modules/auth/auth.router.js";
+app.use("/api/v1/auth", authRouter);
 
 // import { categoriesRouter } from './modules/categories/categories.router.js';
 // app.use('/api/v1/categories', categoriesRouter);
