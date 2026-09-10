@@ -23,8 +23,8 @@ app.use(cookieParser());
 import { authRouter } from "./modules/auth/auth.router.js";
 app.use("/api/v1/auth", authRouter);
 
-// import { categoriesRouter } from './modules/categories/categories.router.js';
-// app.use('/api/v1/categories', categoriesRouter);
+import { categoriesRouter } from "./modules/categories/categories.router.js";
+app.use("/api/v1/categories", categoriesRouter);
 
 // import { equipmentRouter } from './modules/equipment/equipment.router.js';
 // app.use('/api/v1/equipment', equipmentRouter);
