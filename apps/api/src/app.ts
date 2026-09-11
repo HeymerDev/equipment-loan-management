@@ -26,8 +26,8 @@ app.use("/api/v1/auth", authRouter);
 import { categoriesRouter } from "./modules/categories/categories.router.js";
 app.use("/api/v1/categories", categoriesRouter);
 
-// import { equipmentRouter } from './modules/equipment/equipment.router.js';
-// app.use('/api/v1/equipment', equipmentRouter);
+import { equipmentRouter } from "./modules/equipment/equipment.router.js";
+app.use("/api/v1/equipment", equipmentRouter);
 
 // import { loanRequestsRouter } from './modules/loan-requests/loan-requests.router.js';
 // app.use('/api/v1/loan-requests', loanRequestsRouter);
