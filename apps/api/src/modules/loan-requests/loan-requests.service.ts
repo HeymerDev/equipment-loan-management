@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../config/prisma.js';
 import { historyService } from '../../shared/history.service.js';
+import { toDayStart, todayStart } from '../../shared/dates.js';
 import {
   ConflictError,
   ForbiddenError,
@@ -105,21 +106,6 @@ function toDto(row: RequestRow): LoanRequestDto {
     equipmentId: row.equipmentId,
     equipmentName: row.equipment.name,
   };
-}
-
-/**
- * Collapses a timestamp to the start of its UTC calendar day. Requests are
- * booked by day, so normalising both ends keeps comparisons — and the overlap
- * test — free of time-of-day noise.
- */
-function toDayStart(date: Date): Date {
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
-}
-
-function todayStart(): Date {
-  return toDayStart(new Date());
 }
 
 export class LoanRequestsService {
