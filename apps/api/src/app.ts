@@ -32,8 +32,8 @@ app.use("/api/v1/equipment", equipmentRouter);
 import { loanRequestsRouter } from "./modules/loan-requests/loan-requests.router.js";
 app.use("/api/v1/loan-requests", loanRequestsRouter);
 
-// import { loansRouter } from './modules/loans/loans.router.js';
-// app.use('/api/v1/loans', loansRouter);
+import { loansRouter } from "./modules/loans/loans.router.js";
+app.use("/api/v1/loans", loansRouter);
 
 // import { historyRouter } from './modules/history/history.router.js';
 // app.use('/api/v1/history', historyRouter);
