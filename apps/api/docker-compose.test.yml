@@ -1,0 +1,22 @@
+# Disposable PostgreSQL for the integration suite. Data lives in memory and is
+# gone when the container stops.
+#
+#   docker compose -f docker-compose.test.yml up -d
+#   TEST_DATABASE_URL=postgresql://test:test@localhost:54329/equipment_loan_test pnpm test:integration
+#   docker compose -f docker-compose.test.yml down
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: equipment_loan_test
+    ports:
+      - '54329:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U test -d equipment_loan_test']
+      interval: 2s
+      timeout: 3s
+      retries: 20

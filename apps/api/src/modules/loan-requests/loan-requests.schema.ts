@@ -14,11 +14,16 @@ const purpose = z
   .min(1, 'El propósito es requerido')
   .max(500, 'El propósito no puede exceder 500 caracteres');
 
+/**
+ * A date sent as text (YYYY-MM-DD or full ISO 8601). Checking the string first
+ * keeps "missing" and "unparseable" apart: coercing directly would turn both
+ * into zod's generic, English "Invalid date".
+ */
 function dateField(label: string) {
-  return z.coerce.date({
-    required_error: `${label} es requerida`,
-    invalid_type_error: `${label} no es una fecha válida`,
-  });
+  const invalid = `${label} no es una fecha válida`;
+  return z
+    .string({ required_error: `${label} es requerida`, invalid_type_error: invalid })
+    .pipe(z.coerce.date({ errorMap: () => ({ message: invalid }) }));
 }
 
 // ── Body schemas ──────────────────────────────────────────────────────────────
