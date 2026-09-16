@@ -35,8 +35,8 @@ app.use("/api/v1/loan-requests", loanRequestsRouter);
 import { loansRouter } from "./modules/loans/loans.router.js";
 app.use("/api/v1/loans", loansRouter);
 
-// import { historyRouter } from './modules/history/history.router.js';
-// app.use('/api/v1/history', historyRouter);
+import { historyRouter } from "./modules/history/history.router.js";
+app.use("/api/v1/history", historyRouter);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {

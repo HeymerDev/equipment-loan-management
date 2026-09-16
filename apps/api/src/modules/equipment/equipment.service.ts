@@ -15,6 +15,10 @@ import type {
   ListEquipmentQuery,
   EquipmentHistoryQuery,
 } from './equipment.schema.js';
+import {
+  historyQueryService,
+  type HistoryEventDto,
+} from '../history/history.service.js';
 
 /** Public representation of a piece of equipment. */
 export interface EquipmentDto {
@@ -27,17 +31,6 @@ export interface EquipmentDto {
   categoryName: string;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
-}
-
-/** A history entry as returned by `GET /equipment/:id/history`. */
-export interface EquipmentHistoryEntryDto {
-  id: string;
-  eventType: string;
-  entityId: string;
-  entityTable: string;
-  userId: string;
-  occurredAt: string; // ISO 8601
-  changedFields?: ChangedField[];
 }
 
 export interface PaginatedResult<T> {
@@ -275,9 +268,7 @@ export class EquipmentService {
   async listEquipmentHistory(
     id: string,
     query: EquipmentHistoryQuery,
-  ): Promise<PaginatedResult<EquipmentHistoryEntryDto>> {
-    const { page, limit } = query;
-
+  ): Promise<PaginatedResult<HistoryEventDto>> {
     const exists = await prisma.equipment.findUnique({
       where: { id },
       select: { id: true },
@@ -285,32 +276,11 @@ export class EquipmentService {
 
     if (!exists) throw new NotFoundError('Equipo');
 
-    const where: Prisma.HistoryEventWhereInput = { equipmentId: id };
-
-    const [rows, total] = await prisma.$transaction([
-      prisma.historyEvent.findMany({
-        where,
-        orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.historyEvent.count({ where }),
-    ]);
-
-    return {
-      data: rows.map((row) => ({
-        id: row.id,
-        eventType: row.eventType,
-        entityId: row.entityId,
-        entityTable: row.entityTable,
-        userId: row.userId,
-        occurredAt: row.occurredAt.toISOString(),
-        ...(row.changedFields !== null && {
-          changedFields: row.changedFields as unknown as ChangedField[],
-        }),
-      })),
-      meta: { page, limit, total },
-    };
+    return historyQueryService.listEvents({
+      equipmentId: id,
+      page: query.page,
+      limit: query.limit,
+    });
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
