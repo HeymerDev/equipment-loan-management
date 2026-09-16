@@ -8,6 +8,7 @@ import {
 import { prisma } from '../../config/prisma.js';
 import { historyService } from '../../shared/history.service.js';
 import { toDayStart, todayStart } from '../../shared/dates.js';
+import { pdfService } from '../pdf/pdf.service.js';
 import {
   ConflictError,
   ForbiddenError,
@@ -574,15 +575,20 @@ export class LoanRequestsService {
   }
 
   /**
-   * Voucher generation seam. Task 10.1 implements `PDFService.generateVoucher`
-   * and replaces the body of this method with the real call; until then every
-   * approval reports `pdfGenerated: false`.
+   * Confirms the voucher can be produced for the new loan (Req 3.6). The PDF is
+   * rendered again on every `GET /loans/:id/pdf`, so the buffer is discarded.
    *
-   * Whatever goes in here runs *outside* the transaction and must never throw:
-   * a failed voucher leaves the request APROBADA and the loan ACTIVO (Req 3.7).
+   * Runs *outside* the approval transaction and never throws: a failed voucher
+   * leaves the request APROBADA and the loan ACTIVO (Req 3.7, Property 15).
    */
-  private async tryGenerateVoucher(_loanId: string): Promise<boolean> {
-    return false;
+  private async tryGenerateVoucher(loanId: string): Promise<boolean> {
+    try {
+      await pdfService.generateVoucher(loanId);
+      return true;
+    } catch {
+      // PdfService already logged the cause.
+      return false;
+    }
   }
 }
 

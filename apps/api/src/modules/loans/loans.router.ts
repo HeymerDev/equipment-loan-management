@@ -12,6 +12,7 @@ import {
   loanIdParamSchema,
   listLoansQuerySchema,
 } from './loans.schema.js';
+import { pdfService } from '../pdf/pdf.service.js';
 import { authenticate } from '../../middlewares/auth.middleware.js';
 import { requireRole } from '../../middlewares/role.middleware.js';
 import { UnauthorizedError } from '../../shared/errors.js';
@@ -66,6 +67,33 @@ loansRouter.post(
       const body = returnLoanSchema.parse(req.body ?? {});
       const loan = await loansService.returnLoan(id, body, actor(req).id);
       res.status(200).json({ data: loan });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// GET /loans/:id/pdf  (admin) — rendered on every request from current data
+loansRouter.get(
+  '/:id/pdf',
+  authenticate,
+  requireRole(Role.ADMINISTRADOR),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = loanIdParamSchema.parse(req.params);
+      const pdf = await pdfService.generateVoucher(id);
+
+      res
+        .status(200)
+        .set({
+          'Content-Type': 'application/pdf',
+          // inline: the browser opens it in its viewer, ready to print (Req 6.2).
+          'Content-Disposition': `inline; filename="comprobante-prestamo-${id}.pdf"`,
+          'Content-Length': String(pdf.length),
+          // Never serve a cached copy: a regeneration must show current data (Req 6.5).
+          'Cache-Control': 'no-store',
+        })
+        .send(pdf);
     } catch (err) {
       next(err);
     }

@@ -17,6 +17,20 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  /** Printed on the loan voucher (Req 6.4). */
+  INSTITUTION_NAME: z.string().min(1).default('Institución Educativa'),
+  /** IANA timezone for the voucher's generation timestamp; defaults to the server's. */
+  APP_TIMEZONE: z
+    .string()
+    .default(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    .refine((timeZone) => {
+      try {
+        new Intl.DateTimeFormat('es', { timeZone });
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'APP_TIMEZONE debe ser una zona horaria IANA válida (p. ej. America/Bogota)'),
 });
 
 export const env = envSchema.parse(process.env);

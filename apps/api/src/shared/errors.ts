@@ -41,3 +41,9 @@ export class ConflictError extends AppError {
     super(409, 'CONFLICT', message);
   }
 }
+
+export class PdfGenerationError extends AppError {
+  constructor(message = 'El comprobante PDF no pudo generarse') {
+    super(500, 'PDF_GENERATION_FAILED', message);
+  }
+}
