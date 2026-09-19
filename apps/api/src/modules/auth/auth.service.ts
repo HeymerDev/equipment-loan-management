@@ -12,6 +12,12 @@ interface TokenPayload {
 
 interface RefreshPayload {
   sub: string;
+  /**
+   * Lets the web middleware route by role from the session cookie alone. It is
+   * never trusted for authorisation: `refresh` re-reads the role from the
+   * database, and every endpoint checks the access token.
+   */
+  role: string;
 }
 
 export class AuthService {
@@ -37,7 +43,7 @@ export class AuthService {
 
     // Refresh token: 7 days
     const refreshToken = jwt.sign(
-      { sub: user.id } satisfies RefreshPayload,
+      { sub: user.id, role: user.role } satisfies RefreshPayload,
       env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' },
     );

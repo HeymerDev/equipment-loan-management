@@ -1,15 +1,19 @@
 import type { ReactNode } from "react";
+import { AdminShell } from "@/components/domain/admin-shell";
+import { PendingRequestsProvider } from "@/components/domain/pending-requests";
+import { RoleGuard } from "@/components/domain/role-guard";
 
 /**
- * Layout del área de administrador.
- * El guard de rol se aplica en middleware.ts comprobando la cookie refreshToken.
- * Este layout puede añadir navegación, sidebar, etc. en tareas futuras.
+ * Área de administración. El middleware ya filtró por la cookie de sesión;
+ * `RoleGuard` confirma el rol con la sesión real antes de mostrar nada, y la
+ * consulta periódica de pendientes solo corre para administradores.
  */
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen">
-      {/* Navegación del administrador se implementará en tareas posteriores */}
-      <main>{children}</main>
-    </div>
+    <RoleGuard role="ADMINISTRADOR">
+      <PendingRequestsProvider>
+        <AdminShell>{children}</AdminShell>
+      </PendingRequestsProvider>
+    </RoleGuard>
   );
 }

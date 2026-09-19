@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
+import { RoleGuard } from "@/components/domain/role-guard";
+import { TeacherShell } from "@/components/domain/teacher-shell";
 
 /**
- * Layout del área de docente.
- * El guard de rol se aplica en middleware.ts comprobando la cookie refreshToken.
- * Este layout puede añadir navegación, etc. en tareas futuras.
+ * Área docente. El middleware ya filtró por la cookie de sesión; `RoleGuard`
+ * confirma el rol con la sesión real antes de mostrar nada.
  */
 export default function DocenteLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen">
-      {/* Navegación del docente se implementará en tareas posteriores */}
-      <main>{children}</main>
-    </div>
+    <RoleGuard role="DOCENTE">
+      <TeacherShell>{children}</TeacherShell>
+    </RoleGuard>
   );
 }

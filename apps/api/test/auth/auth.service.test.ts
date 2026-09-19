@@ -62,7 +62,7 @@ describe('AuthService.login', () => {
     expect(access.exp! - access.iat!).toBe(15 * 60);
 
     const refresh = jwt.verify(refreshToken, TEST_REFRESH_SECRET) as jwt.JwtPayload;
-    expect(refresh.sub).toBe(user.id);
+    expect(refresh).toMatchObject({ sub: user.id, role: user.role });
     expect(refresh.exp! - refresh.iat!).toBe(7 * 24 * 60 * 60);
   });
 

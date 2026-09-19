@@ -1,109 +1,67 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { ROLE_HOME, isPublicRoute, isRole, requiredRole } from "@/lib/routes";
 
-// ─── Rutas públicas (no requieren autenticación) ─────────────────────────────
+/** Cookie HttpOnly con el refresh token que emite la API al iniciar sesión. */
+const SESSION_COOKIE = "refreshToken";
 
-const PUBLIC_PATHS = ["/login", "/denied"];
-
-// ─── Requisitos de rol por prefijo de ruta ────────────────────────────────────
-
-const ROLE_REQUIREMENTS: Array<{ prefix: string; role: string }> = [
-  { prefix: "/admin", role: "ADMINISTRADOR" },
-  { prefix: "/docente", role: "DOCENTE" },
-];
-
-// ─── Decodificación de JWT (solo payload, sin verificar firma) ────────────────
-// Se hace en el Edge Runtime con base64 puro — sin librerías de Node.
-// La verificación criptográfica real ocurre en el API (Express).
-
-interface JwtPayload {
-  sub?: string;
-  role?: string;
-  exp?: number;
+interface SessionClaims {
+  role?: unknown;
+  exp?: unknown;
 }
 
-function decodeJwtPayload(token: string): JwtPayload | null {
+/**
+ * Lee el payload del refresh token sin verificar la firma. El middleware solo
+ * decide a qué pantalla va cada quien; la autorización real la hace la API en
+ * cada petición, así que una cookie manipulada no da acceso a ningún dato.
+ */
+function readClaims(token: string): SessionClaims | null {
   try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payload = parts[1];
+    const payload = token.split(".")[1];
     if (!payload) return null;
-
-    // Convierte de base64url a base64 estándar
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    // Decodifica en el Edge Runtime
-    const decoded = atob(base64);
-    return JSON.parse(decoded) as JwtPayload;
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded)) as SessionClaims;
   } catch {
     return null;
   }
 }
 
-function isTokenExpired(payload: JwtPayload): boolean {
-  if (!payload.exp) return false;
-  // exp está en segundos
-  return Date.now() / 1000 > payload.exp;
-}
-
-// ─── Middleware ───────────────────────────────────────────────────────────────
-
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
-  // Permite rutas públicas sin autenticación
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
+  if (isPublicRoute(pathname)) return NextResponse.next();
 
-  // Verifica la presencia del refresh token en la cookie
-  // La existencia de esta cookie indica una sesión potencialmente activa.
-  // El access token real vive solo en memoria del cliente, no en cookies.
-  const refreshToken = request.cookies.get("refreshToken")?.value;
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const claims = token ? readClaims(token) : null;
+  const expired = typeof claims?.exp === "number" && claims.exp * 1000 <= Date.now();
 
-  if (!refreshToken) {
-    // Requisito 7.1 y 7.8: redirigir a login si no hay sesión
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Decodifica el refresh token para obtener el rol
-  // Nota: el refresh token también es un JWT firmado por el servidor
-  const payload = decodeJwtPayload(refreshToken);
-
-  if (!payload || isTokenExpired(payload)) {
-    // Token inválido o expirado
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    const response = NextResponse.redirect(loginUrl);
-    // Limpia la cookie inválida
-    response.cookies.delete("refreshToken");
+  // Sin sesión: al login, recordando a dónde se quería ir (Req 7.1, 7.8).
+  if (!claims || expired) {
+    const login = new URL("/login", request.url);
+    if (pathname !== "/") login.searchParams.set("redirect", `${pathname}${search}`);
+    const response = NextResponse.redirect(login);
+    if (token) response.cookies.delete(SESSION_COOKIE);
     return response;
   }
 
-  const userRole = payload.role ?? "";
+  // Sesiones anteriores a que el token llevara el rol: los guards de cada
+  // layout completan la verificación con el access token.
+  const role = isRole(claims.role) ? claims.role : null;
 
-  // Verifica que el rol coincida con la ruta solicitada
-  for (const { prefix, role } of ROLE_REQUIREMENTS) {
-    if (pathname.startsWith(prefix) && userRole !== role) {
-      // Requisito 7.2 y 7.3: redirigir a /denied si el rol no coincide
-      return NextResponse.redirect(new URL("/denied", request.url));
-    }
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(role ? ROLE_HOME[role] : "/login", request.url));
+  }
+
+  // Área de otro rol: pantalla de acceso denegado (Req 7.2, 7.3).
+  const needed = requiredRole(pathname);
+  if (needed && role && role !== needed) {
+    return NextResponse.redirect(new URL("/denied", request.url));
   }
 
   return NextResponse.next();
 }
 
-// ─── Configuración del matcher ────────────────────────────────────────────────
-
 export const config = {
-  matcher: [
-    /*
-     * Aplica el middleware a todas las rutas excepto:
-     * - _next/static  (archivos estáticos)
-     * - _next/image   (optimización de imágenes)
-     * - favicon.ico
-     * - archivos con extensión (e.g. .svg, .png)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  // Todo excepto los archivos estáticos de Next y las imágenes.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
