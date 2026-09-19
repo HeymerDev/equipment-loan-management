@@ -21,6 +21,7 @@ import { equipmentRouter } from '../../src/modules/equipment/equipment.router.js
 import { loanRequestsRouter } from '../../src/modules/loan-requests/loan-requests.router.js';
 import { loansRouter } from '../../src/modules/loans/loans.router.js';
 import { historyRouter } from '../../src/modules/history/history.router.js';
+import { usersRouter } from '../../src/modules/users/users.router.js';
 import { bindTable, resetPrismaMock, type PrismaMock, type Row } from '../helpers/prisma-mock.js';
 import { totalCallCount } from '../helpers/assertions.js';
 import {
@@ -67,6 +68,7 @@ const PROTECTED: Endpoint[] = [
   { method: 'post', path: `/api/v1/loans/${ID}/return`, roles: ['ADMINISTRADOR'] },
   { method: 'get', path: `/api/v1/loans/${ID}/pdf`, roles: ['ADMINISTRADOR'] },
   { method: 'get', path: '/api/v1/history', roles: ['ADMINISTRADOR'] },
+  { method: 'get', path: '/api/v1/users', roles: ['ADMINISTRADOR'] },
 ];
 
 const PUBLIC_ROUTES = new Set(['POST /api/v1/auth/login', 'POST /api/v1/auth/refresh']);
@@ -78,6 +80,7 @@ const MOUNTS: Array<[string, unknown]> = [
   ['/api/v1/loan-requests', loanRequestsRouter],
   ['/api/v1/loans', loansRouter],
   ['/api/v1/history', historyRouter],
+  ['/api/v1/users', usersRouter],
 ];
 
 interface RouteLayer {

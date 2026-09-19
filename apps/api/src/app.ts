@@ -38,6 +38,9 @@ app.use("/api/v1/loans", loansRouter);
 import { historyRouter } from "./modules/history/history.router.js";
 app.use("/api/v1/history", historyRouter);
 
+import { usersRouter } from "./modules/users/users.router.js";
+app.use("/api/v1/users", usersRouter);
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok" });
