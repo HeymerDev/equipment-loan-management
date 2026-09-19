@@ -1,114 +1,82 @@
-import axios, {
-  type AxiosInstance,
-  type AxiosRequestConfig,
-  type InternalAxiosRequestConfig,
-} from "axios";
-import { getAccessToken, setAccessToken, clearAccessToken } from "@/lib/auth";
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
+import { clearAccessToken, getAccessToken, setAccessToken } from "@/lib/access-token";
+import type { Item } from "@/lib/types";
 
 // ─── Instancia base ───────────────────────────────────────────────────────────
 
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // envía cookie refreshToken en cada petición
-  headers: {
-    "Content-Type": "application/json",
-  },
+  withCredentials: true, // envía la cookie refreshToken
+  headers: { "Content-Type": "application/json" },
 });
 
 // ─── Request interceptor — adjunta el access token ────────────────────────────
 
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+api.interceptors.request.use((config) => {
   const token = getAccessToken();
-  if (token && config.headers) {
-    config.headers["Authorization"] = `Bearer ${token}`;
-  }
+  if (token) config.headers.set("Authorization", `Bearer ${token}`);
   return config;
 });
 
-// ─── Lógica de reintento con renovación de token ──────────────────────────────
+// ─── Renovación del access token ──────────────────────────────────────────────
 
-// Marca interna para evitar bucles de reintento infinitos
-const RETRY_FLAG = "_retry";
+/**
+ * Endpoints del propio flujo de autenticación: un 401 en ellos es la respuesta
+ * definitiva (credenciales incorrectas, sesión vencida) y nunca debe disparar
+ * otra renovación — de lo contrario la petición quedaría esperando para siempre.
+ */
+const AUTH_ENDPOINTS = ["/auth/login", "/auth/refresh", "/auth/logout"];
 
-type RetryableConfig = AxiosRequestConfig & { [RETRY_FLAG]?: boolean };
+const isAuthEndpoint = (url?: string): boolean =>
+  url !== undefined && AUTH_ENDPOINTS.some((endpoint) => url.endsWith(endpoint));
 
-// Cola de peticiones en espera mientras se renueva el token
-let isRefreshing = false;
-let refreshQueue: Array<(token: string) => void> = [];
+let refreshInFlight: Promise<string> | null = null;
 
-function onTokenRefreshed(newToken: string) {
-  refreshQueue.forEach((resolve) => resolve(newToken));
-  refreshQueue = [];
+/**
+ * Pide un access token nuevo con la cookie HttpOnly del refresh token.
+ * Las peticiones que fallan a la vez comparten una sola renovación.
+ */
+export function refreshAccessToken(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = api
+      .post<Item<{ accessToken: string }>>("/auth/refresh")
+      .then((response) => {
+        const token = response.data.data.accessToken;
+        setAccessToken(token);
+        return token;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
 }
 
-// ─── Response interceptor — renueva el token en 401 ─────────────────────────
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
+// ─── Response interceptor — renueva el token en 401 y reintenta una vez ───────
 
 api.interceptors.response.use(
   (response) => response,
   async (error: unknown) => {
-    if (!axios.isAxiosError(error)) return Promise.reject(error);
+    if (!axios.isAxiosError(error) || error.response?.status !== 401) throw error;
 
-    const originalRequest = error.config as RetryableConfig | undefined;
-
-    // Solo intentamos renovar si es 401 y no hemos reintentado ya
-    if (
-      error.response?.status !== 401 ||
-      !originalRequest ||
-      originalRequest[RETRY_FLAG]
-    ) {
-      return Promise.reject(error);
-    }
-
-    originalRequest[RETRY_FLAG] = true;
-
-    // Si ya hay una renovación en curso, encolamos la petición
-    if (isRefreshing) {
-      return new Promise<string>((resolve) => {
-        refreshQueue.push(resolve);
-      }).then((newToken) => {
-        if (originalRequest.headers) {
-          (originalRequest.headers as Record<string, string>)[
-            "Authorization"
-          ] = `Bearer ${newToken}`;
-        }
-        return api(originalRequest);
-      });
-    }
-
-    isRefreshing = true;
+    const config = error.config as RetriableConfig | undefined;
+    if (!config || config._retried || isAuthEndpoint(config.url)) throw error;
+    config._retried = true;
 
     try {
-      // El refresh token viaja automáticamente en la cookie HttpOnly
-      const { data } = await api.post<{ data: { accessToken: string } }>(
-        "/auth/refresh",
-      );
-      const newToken = data.data.accessToken;
-
-      setAccessToken(newToken);
-      onTokenRefreshed(newToken);
-
-      if (originalRequest.headers) {
-        (originalRequest.headers as Record<string, string>)[
-          "Authorization"
-        ] = `Bearer ${newToken}`;
-      }
-
-      return api(originalRequest);
+      const token = await refreshAccessToken();
+      config.headers.set("Authorization", `Bearer ${token}`);
+      return await api(config);
     } catch {
-      // El refresh falló — limpiamos el token y redirigimos al login
+      // La sesión terminó: el AuthProvider lo detecta y los guards de ruta
+      // llevan al usuario al login.
       clearAccessToken();
-      refreshQueue = [];
-
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-
-      return Promise.reject(error);
-    } finally {
-      isRefreshing = false;
+      throw error;
     }
   },
 );

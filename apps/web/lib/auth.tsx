@@ -2,56 +2,51 @@
 
 import {
   createContext,
-  useContext,
-  useState,
   useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
   type ReactNode,
 } from "react";
+import { api, refreshAccessToken } from "@/lib/api";
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+  subscribeAccessToken,
+} from "@/lib/access-token";
+import { isRole } from "@/lib/routes";
+import type { Item, Role } from "@/lib/types";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// ─── Sesión ───────────────────────────────────────────────────────────────────
 
-export type Role = "ADMINISTRADOR" | "DOCENTE";
-
-export interface DecodedUser {
-  sub: string;   // userId
+export interface SessionUser {
+  id: string;
   email: string;
   role: Role;
-  iat: number;
-  exp: number;
-}
-
-// ─── Almacenamiento en memoria (módulo-level) ─────────────────────────────────
-// Variable de módulo para que el cliente Axios también pueda leerla
-// sin necesidad de React context (evita dependencias circulares).
-
-let _accessToken: string | null = null;
-
-export function getAccessToken(): string | null {
-  return _accessToken;
-}
-
-export function setAccessToken(token: string): void {
-  _accessToken = token;
-}
-
-export function clearAccessToken(): void {
-  _accessToken = null;
 }
 
 /**
- * Decodifica el payload de un JWT sin verificar la firma.
- * La verificación real ocurre en el servidor (API Express).
+ * - `loading`: comprobando si la cookie de sesión sigue viva.
+ * - `authenticated`: hay un access token en memoria.
+ * - `unauthenticated`: no hay sesión, o expiró.
+ * - `signed-out`: el usuario cerró sesión a propósito.
  */
-export function decodeToken(token: string): DecodedUser | null {
+export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "signed-out";
+
+/** Lee el payload del JWT sin verificar la firma (eso lo hace la API). */
+export function decodeSession(token: string): SessionUser | null {
   try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payload = parts[1];
+    const payload = token.split(".")[1];
     if (!payload) return null;
-    // Convierte de base64url a base64 estándar y añade padding
-    const padded = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(padded);
-    return JSON.parse(json) as DecodedUser;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const claims = JSON.parse(atob(padded)) as { sub?: unknown; email?: unknown; role?: unknown };
+    if (typeof claims.sub !== "string" || typeof claims.email !== "string" || !isRole(claims.role)) {
+      return null;
+    }
+    return { id: claims.sub, email: claims.email, role: claims.role };
   } catch {
     return null;
   }
@@ -60,48 +55,75 @@ export function decodeToken(token: string): DecodedUser | null {
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 interface AuthContextValue {
-  accessToken: string | null;
-  user: DecodedUser | null;
-  login: (token: string) => void;
-  logout: () => void;
+  status: AuthStatus;
+  user: SessionUser | null;
+  /** Inicia sesión y devuelve el usuario; rechaza con el error de la API. */
+  login: (email: string, password: string) => Promise<SessionUser>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [accessToken, setToken] = useState<string | null>(null);
-
-  const login = useCallback((token: string) => {
-    setAccessToken(token);   // actualiza variable de módulo para Axios
-    setToken(token);         // actualiza estado de React para re-renders
-  }, []);
-
-  const logout = useCallback(() => {
-    clearAccessToken();
-    setToken(null);
-  }, []);
-
-  const user = accessToken ? decodeToken(accessToken) : null;
-
-  return (
-    <AuthContext.Provider value={{ accessToken, user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [token, setToken] = useState<string | null>(() => getAccessToken());
+  const [status, setStatus] = useState<AuthStatus>(() =>
+    getAccessToken() ? "authenticated" : "loading",
   );
-}
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+  // Sigue al token: lo emite el login, lo renueva el interceptor, lo borra el logout.
+  useEffect(
+    () =>
+      subscribeAccessToken((next) => {
+        setToken(next);
+        setStatus(next ? "authenticated" : "unauthenticated");
+      }),
+    [],
+  );
+
+  // Al cargar la app el token en memoria se perdió: si la cookie HttpOnly sigue
+  // viva, la sesión se restaura sin volver a pedir credenciales.
+  useEffect(() => {
+    if (getAccessToken()) return;
+    let active = true;
+    refreshAccessToken().catch(() => {
+      if (active) setStatus("unauthenticated");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const user = useMemo(() => (token ? decodeSession(token) : null), [token]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const response = await api.post<Item<{ accessToken: string }>>("/auth/login", {
+      email,
+      password,
+    });
+    const accessToken = response.data.data.accessToken;
+    const session = decodeSession(accessToken);
+    if (!session) throw new Error("La sesión recibida no es válida");
+    setAccessToken(accessToken);
+    return session;
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // La sesión local termina igual aunque la API no responda.
+    }
+    clearAccessToken();
+    setStatus("signed-out");
+  }, []);
+
+  const value = useMemo(() => ({ status, user, login, logout }), [status, user, login, logout]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
 
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth debe usarse dentro de <AuthProvider>");
-  }
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth debe usarse dentro de <AuthProvider>");
+  return context;
 }
