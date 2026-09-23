@@ -20,6 +20,8 @@ interface ConfirmDialogProps {
   title: string;
   description: ReactNode;
   confirmLabel: string;
+  /** Texto del botón que cierra sin hacer nada. */
+  cancelLabel?: string;
   variant?: "default" | "destructive";
   /** Si rechaza, el diálogo queda abierto y muestra el mensaje de la API. */
   onConfirm: () => Promise<void>;
@@ -33,6 +35,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = "Cancelar",
   variant = "default",
   onConfirm,
   children,
@@ -73,7 +76,7 @@ export function ConfirmDialog({
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancelar
+            {cancelLabel}
           </Button>
           <Button variant={variant} onClick={confirm} disabled={pending}>
             {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
