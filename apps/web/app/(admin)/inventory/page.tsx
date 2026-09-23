@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, History, Laptop, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,16 +24,22 @@ import type { Equipment, EquipmentStatus, Paginated } from "@/lib/types";
 /** Máximo 50 equipos por página (Req 1.5). */
 const PAGE_SIZE = 50;
 
-interface InventoryPageProps {
-  searchParams: { notice?: string | string[] };
+// La página se prerenderiza estática: la query solo se lee en el cliente.
+export default function InventoryPage() {
+  return (
+    <Suspense>
+      <Inventory />
+    </Suspense>
+  );
 }
 
-export default function InventoryPage({ searchParams }: InventoryPageProps) {
+function Inventory() {
+  const noticeParam = useSearchParams().get("notice");
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<EquipmentStatus | "">("");
   const [notice, setNotice] = useState<string | null>(
-    searchParams.notice === "created" ? "El equipo quedó registrado como disponible." : null,
+    noticeParam === "created" ? "El equipo quedó registrado como disponible." : null,
   );
   const [toDelete, setToDelete] = useState<Equipment | null>(null);
 
@@ -50,7 +56,7 @@ export default function InventoryPage({ searchParams }: InventoryPageProps) {
 
   function dismissNotice() {
     setNotice(null);
-    if (searchParams.notice) router.replace("/inventory");
+    if (noticeParam) router.replace("/inventory");
   }
 
   async function remove(equipment: Equipment) {
