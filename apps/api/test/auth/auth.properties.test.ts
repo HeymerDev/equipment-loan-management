@@ -49,6 +49,7 @@ const ID = '7d5e0f1a-2b3c-4d5e-8f60-718293a4b5c6';
 /** Every route that requires authentication, with the roles it admits. */
 const PROTECTED: Endpoint[] = [
   { method: 'post', path: '/api/v1/auth/logout', roles: 'any' },
+  { method: 'post', path: '/api/v1/auth/change-password', roles: 'any' },
   { method: 'get', path: '/api/v1/categories', roles: 'any' },
   { method: 'get', path: '/api/v1/equipment', roles: 'any' },
   { method: 'post', path: '/api/v1/equipment', roles: ['ADMINISTRADOR'] },
@@ -69,6 +70,7 @@ const PROTECTED: Endpoint[] = [
   { method: 'get', path: `/api/v1/loans/${ID}/pdf`, roles: ['ADMINISTRADOR'] },
   { method: 'get', path: '/api/v1/history', roles: ['ADMINISTRADOR'] },
   { method: 'get', path: '/api/v1/users', roles: ['ADMINISTRADOR'] },
+  { method: 'post', path: '/api/v1/users', roles: ['ADMINISTRADOR'] },
 ];
 
 const PUBLIC_ROUTES = new Set(['POST /api/v1/auth/login', 'POST /api/v1/auth/refresh']);

@@ -6,9 +6,10 @@ import {
   type NextFunction,
 } from "express";
 import { authService } from "./auth.service.js";
-import { loginSchema } from "./auth.schema.js";
+import { changePasswordSchema, loginSchema } from "./auth.schema.js";
 import { authenticate } from "../../middlewares/auth.middleware.js";
 import { env } from "../../config/env.js";
+import { UnauthorizedError } from "../../shared/errors.js";
 
 export const authRouter: IRouter = Router();
 
@@ -28,13 +29,11 @@ authRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const body = loginSchema.parse(req.body);
-      const { accessToken, refreshToken } = await authService.login(
-        body.email,
-        body.password,
-      );
+      const { accessToken, refreshToken, mustChangePassword } =
+        await authService.login(body.email, body.password);
 
       res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, cookieOptions);
-      res.status(200).json({ data: { accessToken } });
+      res.status(200).json({ data: { accessToken, mustChangePassword } });
     } catch (err) {
       next(err);
     }
@@ -59,8 +58,9 @@ authRouter.post(
         return;
       }
 
-      const { accessToken } = await authService.refresh(refreshToken);
-      res.status(200).json({ data: { accessToken } });
+      const { accessToken, mustChangePassword } =
+        await authService.refresh(refreshToken);
+      res.status(200).json({ data: { accessToken, mustChangePassword } });
     } catch (err) {
       next(err);
     }
@@ -81,6 +81,32 @@ authRouter.post(
       }
 
       res.clearCookie(REFRESH_TOKEN_COOKIE, { path: "/" });
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /auth/change-password  (the user's own password)
+authRouter.post(
+  "/change-password",
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) throw new UnauthorizedError();
+      const body = changePasswordSchema.parse(req.body);
+      const refreshToken = req.cookies[REFRESH_TOKEN_COOKIE] as
+        | string
+        | undefined;
+
+      await authService.changePassword(
+        req.user.id,
+        body.currentPassword,
+        body.newPassword,
+        refreshToken,
+      );
+
       res.status(204).send();
     } catch (err) {
       next(err);

@@ -49,15 +49,17 @@ enum EventType {
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  fullName      String
-  role          Role
-  createdAt     DateTime       @default(now())
-  refreshTokens RefreshToken[]
-  loanRequests  LoanRequest[]
-  historyEvents HistoryEvent[]
+  id                 String         @id @default(uuid())
+  email              String         @unique
+  passwordHash       String
+  fullName           String
+  role               Role
+  /// Set when an administrator creates the account with a temporary password.
+  mustChangePassword Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  refreshTokens      RefreshToken[]
+  loanRequests       LoanRequest[]
+  historyEvents      HistoryEvent[]
 }
 
 model RefreshToken {

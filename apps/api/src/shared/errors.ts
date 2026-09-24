@@ -47,3 +47,15 @@ export class PdfGenerationError extends AppError {
     super(500, 'PDF_GENERATION_FAILED', message);
   }
 }
+
+/**
+ * The account still has the temporary password an administrator generated:
+ * every endpoint except the auth ones is closed until it is changed.
+ */
+export class PasswordChangeRequiredError extends AppError {
+  constructor(
+    message = 'Debes cambiar tu contraseña temporal antes de continuar',
+  ) {
+    super(403, 'PASSWORD_CHANGE_REQUIRED', message);
+  }
+}

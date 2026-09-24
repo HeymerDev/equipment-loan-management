@@ -2,12 +2,17 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../config/prisma.js';
 import { env } from '../../config/env.js';
-import { UnauthorizedError } from '../../shared/errors.js';
+import {
+  UnauthorizedError,
+  ValidationError,
+} from '../../shared/errors.js';
 
 interface TokenPayload {
   sub: string;
   email: string;
   role: string;
+  /** True while the account still carries an administrator's temporary password. */
+  mustChangePassword: boolean;
 }
 
 interface RefreshPayload {
@@ -24,7 +29,11 @@ export class AuthService {
   async login(
     email: string,
     password: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    mustChangePassword: boolean;
+  }> {
     // Generic error for any credential mismatch — never reveal which field is wrong (Req 7.7)
     const genericError = new UnauthorizedError('Credenciales incorrectas');
 
@@ -36,7 +45,12 @@ export class AuthService {
 
     // Access token: 15 minutes
     const accessToken = jwt.sign(
-      { sub: user.id, email: user.email, role: user.role } satisfies TokenPayload,
+      {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+      } satisfies TokenPayload,
       env.JWT_SECRET,
       { expiresIn: '15m' },
     );
@@ -58,10 +72,16 @@ export class AuthService {
       },
     });
 
-    return { accessToken, refreshToken };
+    return {
+      accessToken,
+      refreshToken,
+      mustChangePassword: user.mustChangePassword,
+    };
   }
 
-  async refresh(refreshToken: string): Promise<{ accessToken: string }> {
+  async refresh(
+    refreshToken: string,
+  ): Promise<{ accessToken: string; mustChangePassword: boolean }> {
     // Verify JWT signature first
     let payload: RefreshPayload;
     try {
@@ -90,12 +110,65 @@ export class AuthService {
         sub: stored.user.id,
         email: stored.user.email,
         role: stored.user.role,
+        mustChangePassword: stored.user.mustChangePassword,
       } satisfies TokenPayload,
       env.JWT_SECRET,
       { expiresIn: '15m' },
     );
 
-    return { accessToken };
+    return {
+      accessToken,
+      mustChangePassword: stored.user.mustChangePassword,
+    };
+  }
+
+  /**
+   * Replaces the user's own password. It clears the temporary-password flag
+   * and revokes every other session, so a password handed over by an
+   * administrator stops working everywhere once the user changes it.
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    keepRefreshToken?: string,
+  ): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedError();
+
+    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new ValidationError(
+        'La contraseña actual no es correcta',
+        'currentPassword',
+      );
+    }
+
+    if (await bcrypt.compare(newPassword, user.passwordHash)) {
+      throw new ValidationError(
+        'La nueva contraseña debe ser distinta de la actual',
+        'newPassword',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, mustChangePassword: false },
+      }),
+      prisma.refreshToken.updateMany({
+        where: {
+          userId,
+          revokedAt: null,
+          ...(keepRefreshToken !== undefined && {
+            token: { not: keepRefreshToken },
+          }),
+        },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 
   async logout(refreshToken: string): Promise<void> {

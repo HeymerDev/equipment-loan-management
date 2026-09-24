@@ -17,6 +17,10 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// An account with a temporary password may only reach the auth routes.
+import { requirePasswordChanged } from "./middlewares/password-change.middleware.js";
+app.use(requirePasswordChanged);
+
 // ── API routes ────────────────────────────────────────────────────────────────
 // Routers are mounted here as each module is implemented.
 
