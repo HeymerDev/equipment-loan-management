@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { CHANGE_PASSWORD_ROUTE } from "@/lib/routes";
 import type { Role } from "@/lib/types";
 
 /**
@@ -23,11 +24,13 @@ export function RoleGuard({ role, children }: { role: Role; children: ReactNode 
       router.replace("/login");
     } else if (status === "authenticated") {
       if (!user) router.replace("/login");
+      // La contraseña temporal solo abre la pantalla para reemplazarla.
+      else if (user.mustChangePassword) router.replace(CHANGE_PASSWORD_ROUTE);
       else if (user.role !== role) router.replace("/denied");
     }
   }, [status, user, role, pathname, router]);
 
-  if (status !== "authenticated" || !user || user.role !== role) {
+  if (status !== "authenticated" || !user || user.mustChangePassword || user.role !== role) {
     return (
       <div className="flex min-h-screen items-center justify-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

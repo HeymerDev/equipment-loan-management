@@ -144,6 +144,18 @@ export interface HistoryEvent {
   loanId?: string;
 }
 
+export interface UserInput {
+  fullName: string;
+  email: string;
+  role: Role;
+}
+
+/** Respuesta de `POST /users`: la contraseña temporal se devuelve una sola vez. */
+export interface CreatedUser {
+  user: UserSummary;
+  temporaryPassword: string;
+}
+
 export interface UserSummary {
   id: string;
   email: string;

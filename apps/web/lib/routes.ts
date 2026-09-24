@@ -6,7 +6,7 @@ import type { Role } from "@/lib/types";
  * Lo usan el middleware, los guards de layout y el login.
  */
 export const ROLE_ROUTES: Record<Role, string[]> = {
-  ADMINISTRADOR: ["/dashboard", "/inventory", "/requests", "/loans", "/history"],
+  ADMINISTRADOR: ["/dashboard", "/inventory", "/requests", "/loans", "/history", "/users"],
   DOCENTE: ["/equipment", "/my-requests"],
 };
 
@@ -17,6 +17,12 @@ export const ROLE_HOME: Record<Role, string> = {
 };
 
 export const PUBLIC_ROUTES = ["/login", "/denied"];
+
+/**
+ * Abierta a cualquier rol con sesión: es la única pantalla que ve quien todavía
+ * arrastra la contraseña temporal que le entregó el administrador.
+ */
+export const CHANGE_PASSWORD_ROUTE = "/change-password";
 
 const matches = (pathname: string, prefix: string): boolean =>
   pathname === prefix || pathname.startsWith(`${prefix}/`);

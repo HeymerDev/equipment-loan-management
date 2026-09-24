@@ -25,6 +25,8 @@ export interface SessionUser {
   id: string;
   email: string;
   role: Role;
+  /** La cuenta sigue con la contraseña temporal del administrador. */
+  mustChangePassword: boolean;
 }
 
 /**
@@ -42,11 +44,21 @@ export function decodeSession(token: string): SessionUser | null {
     if (!payload) return null;
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    const claims = JSON.parse(atob(padded)) as { sub?: unknown; email?: unknown; role?: unknown };
+    const claims = JSON.parse(atob(padded)) as {
+      sub?: unknown;
+      email?: unknown;
+      role?: unknown;
+      mustChangePassword?: unknown;
+    };
     if (typeof claims.sub !== "string" || typeof claims.email !== "string" || !isRole(claims.role)) {
       return null;
     }
-    return { id: claims.sub, email: claims.email, role: claims.role };
+    return {
+      id: claims.sub,
+      email: claims.email,
+      role: claims.role,
+      mustChangePassword: claims.mustChangePassword === true,
+    };
   } catch {
     return null;
   }

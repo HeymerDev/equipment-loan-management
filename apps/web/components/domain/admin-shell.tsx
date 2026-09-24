@@ -9,6 +9,7 @@ import {
   Inbox,
   Laptop,
   LayoutDashboard,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { PendingRequestsBadge } from "@/components/domain/pending-requests";
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { href: "/requests", label: "Solicitudes", icon: Inbox, pendingBadge: true },
   { href: "/loans", label: "Préstamos", icon: ArrowLeftRight },
   { href: "/history", label: "Historial", icon: History },
+  { href: "/users", label: "Usuarios", icon: Users },
 ];
 
 const isActive = (pathname: string, href: string) =>
