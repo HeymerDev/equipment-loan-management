@@ -1,6 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Tags } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BackLink } from "@/components/domain/back-link";
@@ -38,6 +42,17 @@ export default function NewEquipmentPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-24 w-full" />
             </div>
+          ) : categories.data.length === 0 ? (
+            <Alert variant="warning">
+              <Tags aria-hidden />
+              <AlertTitle>Primero crea una categoría</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>Todo equipo pertenece a una categoría, y todavía no hay ninguna.</p>
+                <Button asChild size="sm" variant="outline" className="bg-background">
+                  <Link href="/categories">Ir a categorías</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : (
             <EquipmentForm
               categories={categories.data}

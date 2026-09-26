@@ -9,6 +9,7 @@ import {
   Inbox,
   Laptop,
   LayoutDashboard,
+  Tags,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +31,7 @@ const NAV: NavItem[] = [
   { href: "/requests", label: "Solicitudes", icon: Inbox, pendingBadge: true },
   { href: "/loans", label: "Préstamos", icon: ArrowLeftRight },
   { href: "/history", label: "Historial", icon: History },
+  { href: "/categories", label: "Categorías", icon: Tags },
   { href: "/users", label: "Usuarios", icon: Users },
 ];
 

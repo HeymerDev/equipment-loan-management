@@ -6,7 +6,7 @@ import type { Role } from "@/lib/types";
  * Lo usan el middleware, los guards de layout y el login.
  */
 export const ROLE_ROUTES: Record<Role, string[]> = {
-  ADMINISTRADOR: ["/dashboard", "/inventory", "/requests", "/loans", "/history", "/users"],
+  ADMINISTRADOR: ["/dashboard", "/inventory", "/requests", "/loans", "/history", "/categories", "/users"],
   DOCENTE: ["/equipment", "/my-requests"],
 };
 

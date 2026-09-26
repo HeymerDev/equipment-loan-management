@@ -35,6 +35,8 @@ export interface Paginated<T> {
 export interface Category {
   id: string;
   name: string;
+  /** Equipos activos que la usan. */
+  equipmentCount: number;
 }
 
 export interface Equipment {
