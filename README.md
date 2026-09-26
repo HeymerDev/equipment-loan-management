@@ -6,6 +6,9 @@ en PDF e historial de todo lo que ocurre.
 
 ## Cómo funciona
 
+- El **administrador** registra las cuentas y las categorías de equipos. Al crear una
+  cuenta, el sistema genera una contraseña temporal que se muestra una sola vez; quien la
+  recibe no puede hacer nada más hasta cambiarla.
 - El **docente** consulta el catálogo de equipos disponibles y crea una solicitud indicando
   el propósito y el período. Puede cancelarla mientras siga pendiente.
 - El **administrador** revisa la cola de solicitudes pendientes y las aprueba o rechaza.
@@ -36,7 +39,7 @@ apps/
     test/         unitarias, de propiedad e integración contra PostgreSQL
   web/
     app/(auth)/     login
-    app/(admin)/    dashboard, inventory, requests, loans, history
+    app/(admin)/    dashboard, inventory, requests, loans, history, categories, users
     app/(docente)/  equipment, my-requests
     components/     ui/ (base) y domain/ (del dominio)
     lib/            cliente HTTP, sesión, formatos, tipos de la API
@@ -101,7 +104,9 @@ Todas las rutas cuelgan de `/api/v1` y, salvo el login, piden la cabecera
 | `POST /auth/login` | Público | Devuelve el token de acceso y deja el refresh en cookie |
 | `POST /auth/refresh` | Cookie | Renueva el token de acceso |
 | `POST /auth/logout` | Autenticado | Cierra la sesión y borra la cookie |
-| `GET /categories` | Autenticado | Categorías de equipos |
+| `POST /auth/change-password` | Autenticado | Cambia la propia contraseña y cierra las demás sesiones |
+| `GET /categories` | Autenticado | Categorías de equipos, con cuántos equipos usa cada una |
+| `POST`, `PATCH`, `DELETE /categories[/:id]` | Administrador | Crear, renombrar y eliminar categorías |
 | `GET /equipment` | Autenticado | Inventario paginado, con filtro por estado |
 | `POST`, `PATCH`, `DELETE /equipment[/:id]` | Administrador | Registrar, editar y retirar equipos |
 | `GET /equipment/:id/history` | Administrador | Historial de un equipo |
@@ -116,6 +121,7 @@ Todas las rutas cuelgan de `/api/v1` y, salvo el login, piden la cabecera
 | `GET /loans/:id/pdf` | Administrador | Comprobante en PDF |
 | `GET /history` | Administrador | Historial global, con filtros |
 | `GET /users` | Administrador | Usuarios, sin datos sensibles |
+| `POST /users` | Administrador | Registra una cuenta y devuelve su contraseña temporal |
 
 La aprobación responde `200` con el comprobante listo, o `207` si el préstamo se creó pero
 el PDF falló: en ese caso el préstamo es válido y el comprobante se puede volver a pedir.
@@ -143,6 +149,8 @@ Nunca apuntes `TEST_DATABASE_URL` a una base real: la suite le aplica las migrac
   sesión se recupera con la cookie de refresco.
 - **Las fechas de préstamo son días calendario en UTC**, que es con lo que valida la API. Los
   instantes exactos (creación, devolución real, historial) se muestran en la hora local.
+- **Una categoría con equipos no se elimina**, ni siquiera si esos equipos están retirados:
+  su historial sigue mostrándola. Renombrarla no afecta a los equipos.
 - **Los equipos no se borran**, se retiran. Su historial se conserva y un equipo prestado no
   se puede retirar.
 - **El historial solo se escribe desde `HistoryService`**, dentro de la misma transacción que
