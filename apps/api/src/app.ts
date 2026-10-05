@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error.middleware.js";
+import { env } from "./config/env.js";
 
 export const app: Express = express();
 
@@ -9,7 +10,7 @@ export const app: Express = express();
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: env.FRONTEND_URL, // only the web app's own origins
     credentials: true, // required for cookie-based refresh token
   }),
 );
