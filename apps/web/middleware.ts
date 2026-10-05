@@ -62,6 +62,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Todo excepto los archivos estáticos de Next y las imágenes.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // Todo excepto la API reenviada (next.config.js), los archivos estáticos de
+  // Next y las imágenes. La API decide por sí misma quién puede pasar.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
