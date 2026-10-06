@@ -15,7 +15,19 @@ const nextConfig = {
    */
   async rewrites() {
     const target = process.env.API_PROXY_TARGET?.trim().replace(/\/+$/, "");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() ?? "";
+
+    // Una URL relativa solo funciona si hay a dónde reenviarla; si no, la web
+    // se llamaría a sí misma y cada petición daría 404. Mejor fallar el build.
+    if (apiUrl.startsWith("/") && !target) {
+      throw new Error(
+        `NEXT_PUBLIC_API_URL es "${apiUrl}" pero falta API_PROXY_TARGET. ` +
+          "Defínela con la URL base de la API (p. ej. https://mi-api.onrender.com) y vuelve a compilar.",
+      );
+    }
+
     if (!target) return [];
+    console.log(`[next.config] /api/v1/* se reenvía a ${target}/api/v1/*`);
     return [{ source: "/api/v1/:path*", destination: `${target}/api/v1/:path*` }];
   },
 };
