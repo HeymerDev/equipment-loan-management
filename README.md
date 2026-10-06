@@ -14,6 +14,7 @@ lectura.
 - [Pruebas](#pruebas)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Decisiones técnicas](#decisiones-técnicas)
+- [Despliegue](#despliegue)
 - [Limitaciones conocidas](#limitaciones-conocidas)
 
 ## Cómo funciona
@@ -90,6 +91,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 | `PORT` | No | Puerto de la API. Por defecto `3001` |
 | `INSTITUTION_NAME` | No | Nombre impreso en el comprobante. Por defecto `Institución Educativa` |
 | `APP_TIMEZONE` | No | Zona horaria IANA de la hora impresa en el comprobante. Por defecto, la del servidor |
+| `FRONTEND_URL` | No | Orígenes que acepta CORS, separados por comas. Por defecto `http://localhost:3000` |
 | `TEST_DATABASE_URL` | Solo pruebas | Base desechable para la suite de integración |
 
 Si falta una variable obligatoria, la API no arranca y dice cuál es.
@@ -555,12 +557,52 @@ Los grupos `(admin)` y `(docente)` no aparecen en la URL: `/inventory` vive en
 - **Las contraseñas se guardan solo como hash bcrypt.** La temporal no se guarda en texto
   claro en ningún momento.
 
+## Despliegue
+
+En producción, la web **reenvía** `/api/v1/*` a la API. El navegador solo habla con el dominio
+de la web, así que la cookie de sesión queda en ese dominio y el middleware de Next puede
+leerla. Si la web llamara directo a la API en otro dominio, el middleware nunca vería la
+sesión y devolvería siempre al login.
+
+```
+navegador ──► https://mi-web.vercel.app/api/v1/auth/login
+                      │  (reenvío de next.config.js)
+                      ▼
+              https://mi-api.onrender.com/api/v1/auth/login
+```
+
+### API (ejemplo con Render)
+
+| Campo | Valor |
+|---|---|
+| Root Directory | Vacío (raíz del repositorio) |
+| Build Command | `pnpm install --frozen-lockfile --prod=false && pnpm --filter @equipment-loan/api exec prisma generate && pnpm --filter @equipment-loan/api build` |
+| Start Command | `pnpm --filter @equipment-loan/api exec prisma migrate deploy && node apps/api/dist/index.js` |
+| Health Check Path | `/health` |
+
+Variables: las de [la configuración de la API](#2-configurar-la-api), más:
+
+```dotenv
+NODE_ENV=production
+NODE_VERSION=22
+FRONTEND_URL=https://mi-web.vercel.app
+```
+
+`PORT` la asigna Render. `--prod=false` es necesario: con `NODE_ENV=production`, pnpm se
+saltaría `typescript` y `prisma`, que son dependencias de desarrollo.
+
+### Web
+
+```dotenv
+API_PROXY_TARGET=https://mi-api.onrender.com
+NEXT_PUBLIC_API_URL=/api/v1
+```
+
+`API_PROXY_TARGET` es la URL base de la API, **sin** `/api/v1`. Las dos variables se leen al
+**compilar**: si cambias alguna, vuelve a desplegar la web.
+
 ## Limitaciones conocidas
 
-- **CORS está fijo en `http://localhost:3000`** (`apps/api/src/app.ts`). Para desplegar, hay
-  que cambiar ese origen por el dominio real.
-- **La cookie de sesión es `SameSite=Strict`.** En producción, la web y la API deben compartir
-  sitio, por ejemplo sirviendo la API bajo el mismo dominio o detrás de un proxy.
 - **El historial no registra** la creación de cuentas ni los cambios de categorías; solo
   equipos, solicitudes y préstamos.
 - **ESLint no está configurado en `apps/web`.** `pnpm lint` falla ahí porque `next lint` abre
